@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "typeinfo": "c",
+        "ubusfuncs.h": "c"
+    }
+}

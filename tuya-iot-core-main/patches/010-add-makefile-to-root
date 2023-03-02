@@ -1,0 +1,14 @@
+Index: tuya-iot-core-main-1.0.0/Makefile
+===================================================================
+--- /dev/null
++++ tuya-iot-core-main-1.0.0/Makefile
+@@ -0,0 +1,9 @@
++.PHONY: all install clean
++
++all:
++	echo i am all
++install:
++	echo i am install
++	cd ./build;make
++clean:
++	echo i am clean
