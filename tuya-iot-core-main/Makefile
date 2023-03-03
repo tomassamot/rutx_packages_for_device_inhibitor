@@ -23,43 +23,26 @@ define Package/tuya-iot-core-main/description
 endef
 
 define Build/InstallDev
-	echo "HELLOOOOOOOOOOOO 1"
 	$(INSTALL_DIR) $(1)/usr/lib
 	$(INSTALL_DIR) $(1)/usr/include
-	echo "HELLOOOOOOOOOOOO 2"
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/build/lib/liblink_core.so $(1)/usr/lib/
-	echo "HELLOOOOOOOOOOOO 3"
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/build/lib/libmiddleware_implementation.so $(1)/usr/lib/
-	echo "HELLOOOOOOOOOOOO 4"
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/build/lib/libplatform_port.so $(1)/usr/lib/
-	echo "HELLOOOOOOOOOOOO 5"
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/build/lib/libutils_modules.so $(1)/usr/lib/
-	echo "HELLOOOOOOOOOOOO 6"
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/utils/*.h $(1)/usr/include/
-	echo "HELLOOOOOOOOOOOO 7"
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/interface/*.h $(1)/usr/include/
-	echo "HELLOOOOOOOOOOOO 8"
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/include/*.h $(1)/usr/include/
-	echo "HELLOOOOOOOOOOOO 9"
 endef
 
 define Package/tuya-iot-core-main/install
-	echo "OOOOOOOOOOOOLLEH 1"
 	$(INSTALL_DIR) $(1)/usr/lib
 	$(INSTALL_DIR) $(1)/usr/include
-	echo "OOOOOOOOOOOOLLEH 2"
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/build/lib/liblink_core.so $(1)/usr/lib/
-	echo "OOOOOOOOOOOOLLEH 3"
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/build/lib/libmiddleware_implementation.so $(1)/usr/lib/
-	echo "OOOOOOOOOOOOLLEH 4"
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/build/lib/libplatform_port.so $(1)/usr/lib/
-	echo "OOOOOOOOOOOOLLEH 5"
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/build/lib/libutils_modules.so $(1)/usr/lib/
-	echo "OOOOOOOOOOOOLLEH 6"
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/utils/*.h $(1)/usr/include/
-	echo "OOOOOOOOOOOOLLEH 7"
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/interface/*.h $(1)/usr/include/
-	echo "OOOOOOOOOOOOLLEH 8"
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/include/*.h $(1)/usr/include/
 endef
 

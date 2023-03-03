@@ -49,29 +49,30 @@ int main(int argc, char** argv)
     signal(SIGINT, handle_kill);
     signal(SIGUSR1, handle_kill);
 
-    ret = tuya_connect(arguments.product_id, arguments.device_id, arguments.device_secret);
-    if(ret != 0){
-        return ret;
-    }
-    
-    connect_to_ubus(&context);
-    if(context == NULL){
-        printf("Failed to connect to ubus\n");
-        return 1;
-    }
-    ubus_lookup_id(context, "system", &id);
+    while(program_is_killed == 0){
+        connect_to_ubus(&context);
+        if(context == NULL){
+            syslog(LOG_ERR, "Failed to connect to ubus\n");
+            return 1;
+        }
 
-    syslog(LOG_INFO, "Beginning to send information to cloud");
-    ret = 0;
-    while(ret == 0 && program_is_killed == 0){
-        sleep(5);
-        syslog(LOG_INFO, "Sending router RAM information...");
-        ubus_invoke(context, id, "info", NULL, board_cb, NULL, 3000);
+        ret = tuya_connect(arguments.product_id, arguments.device_id, arguments.device_secret/*, context*/);
+        if(ret != 0){
+            return ret;
+        }
+        
+        ubus_lookup_id(context, "system", &id);
+        syslog(LOG_INFO, "Beginning to send information to cloud");
+        rc = 0;
+        while(rc == 0 && program_is_killed == 0){
+            sleep(4);
+            syslog(LOG_INFO, "Sending router RAM information...");
+            ubus_invoke(context, id, "info", NULL, board_cb, NULL, 3000);
+        }
+
+        disconnect_from_ubus(context);
+        tuya_disconnect();
     }
-
-    disconnect_from_ubus(context);
-    tuya_disconnect();
-
     return(0);
 }
 static void board_cb(struct ubus_request *req, int type, struct blob_attr *msg)
@@ -92,7 +93,10 @@ static void board_cb(struct ubus_request *req, int type, struct blob_attr *msg)
 	blobmsg_parse(memory_policy, __MEMORY_MAX, memory, blobmsg_data(tb[MEMORY_DATA]), blobmsg_data_len(tb[MEMORY_DATA]));
 
     sprintf(message, "{\"free_ram\":%lld,\"total_ram\":%lld}", blobmsg_get_u64(memory[FREE_MEMORY]), blobmsg_get_u64(memory[TOTAL_MEMORY]));
-    tuya_loop(message);
+    int ret = tuya_loop(message);
+    if(ret != 0){
+        rc+=1;
+    }
 }
 static void handle_kill(int signum)
 {
