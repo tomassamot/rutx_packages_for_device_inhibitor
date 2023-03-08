@@ -56,7 +56,7 @@ int main(int argc, char** argv)
             return 1;
         }
 
-        ret = tuya_connect(arguments.product_id, arguments.device_id, arguments.device_secret/*, context*/);
+        ret = tuya_connect(arguments.product_id, arguments.device_id, arguments.device_secret, context);
         if(ret != 0){
             return ret;
         }

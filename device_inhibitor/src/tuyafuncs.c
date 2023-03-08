@@ -20,6 +20,7 @@ static void on_connected(tuya_mqtt_context_t* context, void* user_data);
 static void on_disconnect(tuya_mqtt_context_t* context, void* user_data);
 static void on_messages(tuya_mqtt_context_t* context, void* user_data, const tuyalink_message_t* msg);
 static int change_ip_address(char *msg);
+static int check_if_is_number(char *str);
 static void write_message_to_file(char msg[]);
 static void handle_kill(int signum);
 
@@ -27,16 +28,14 @@ static void handle_kill(int signum);
 
 
 tuya_mqtt_context_t client_instance;
-struct ubus_context ubus_context;
+struct ubus_context *ubus_context;
 int ACK=0;
 
-int tuya_connect(char *product_id, char *device_id, char *device_secret)
+int tuya_connect(char *product_id, char *device_id, char *device_secret, struct ubus_context *ctx)
 {
     int ret = OPRT_OK;
 
-    /*strncpy(prod_id, product_id, 30);
-    strncpy(dev_id, device_id, 30);
-    strncpy(dev_sec, device_secret, 30);*/
+    ubus_context = ctx;
 
     signal(SIGKILL, handle_kill);
     signal(SIGTERM, handle_kill);
@@ -112,52 +111,52 @@ static void on_disconnect(tuya_mqtt_context_t* context, void* user_data)
 static void on_messages(tuya_mqtt_context_t* context, void* user_data, const tuyalink_message_t* msg)
 {
     syslog(LOG_INFO, "Message received from Tuya cloud");
-    printf("message type: %d\n", msg->type);
     switch(msg->type){
         case THING_TYPE_DEVICE_TOPO_GET_RSP:
             ACK = 1;
             break;
-        case THING_TYPE_PROPERTY_SET:
-            //change_ip_address(msg->data_string);
+        case THING_TYPE_ACTION_EXECUTE:
+            change_ip_address(msg->data_string);
             break;
     }
 }
-/*static int change_ip_address(char *msg)
+static int change_ip_address(char *json_msg)
 {
-    //struct blob_buf b = {};
-    uint32_t id;
+    cJSON *json_obj, *json_input_params, *json_ip;
+    int ret = 0;
 
-    ubus_lookup_id(context, "uci", &id);
-    ubus_invoke(context, id, "get", NULL, get_ip_cb, NULL, 3000);
-}
-static void get_ip_cb(struct ubus_request *req, int type, struct blob_attr *msg)
-{
-    struct blob_attr *ipaddr[__IPADDR_MAX];
-    struct blob_attr *get_args[__UCI_GET_MAX];
-    struct blob_buf b = {};
+    json_obj = cJSON_Parse(json_msg);
+    json_input_params = cJSON_GetObjectItem(json_obj, "inputParams");
+    json_ip = cJSON_GetObjectItem(json_input_params, "new_ip");
+    char *ip = cJSON_GetStringValue(json_ip);
 
-    blobmsg_parse(get_ipaddr_policy, __UCI_GET_MAX, get_args, blob_data(msg), blob_len(msg));
-
-    if(!get_args[CONFIG] || !get_args[SECTION] || !get_args[OPTION])
-        return UBUS_STATUS_INVALID_ARGUMENT;
-
-    blobmsg_parse(ipaddr_policy, __IPADDR_MAX, ipaddr, blobmsg_data())
-
-    blob_buf_init(&b, "");
-
-    blobmsg_add_table(&b, "")
-}
-static void set_ip(struct ubus_context *ctx, struct ubus_object *obj, struct ubus_request_data *req, const char *method, struct blob_attr *msg)
-{
+    char buffer[100];
+    strcpy(buffer, ip);
+    char *token = strtok(buffer, ".");
+    int i = 0;
+    while(i != 4){
+        if(token == NULL || (token != NULL && check_if_is_number(token) != 0)){
+            syslog(LOG_ERR, "Received incorrectly formatted IP address");
+            return 1;
+        }
+        
+        token = strtok(NULL, ".");
+        i++;
+    }
     
+    ret = set_new_static_ip(ubus_context, ip);
+    if(ret == 0){
+        commit_uci_changes(ubus_context, "network");
+    }
+    return 0;
 }
-static void get_ip_cb(struct ubus_request *req, int type, struct blob_attr *msg)
+static int check_if_is_number(char *str)
 {
-    
-    struct blob_attr = ip[__IPADDR_MAX];
-
-    blobmsg_parse(info_policy, __INFO_MAX, tb, blob_data(msg), blob_len(msg));
-}*/
+    int num = strtol(str, NULL, 8);
+    if(num == 0)
+        return 1;
+    return 0;
+}
 static void write_message_to_file(char *msg)
 {
     FILE *msg_file = NULL;

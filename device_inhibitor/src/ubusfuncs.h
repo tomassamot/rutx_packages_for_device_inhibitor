@@ -66,4 +66,6 @@ static const struct blobmsg_policy set_ipaddr_policy[__UCI_SET_MAX] = {
 int connect_to_ubus(struct ubus_context **ctx);
 struct blob_attr* get_memory_info(struct ubus_context *ctx);
 void disconnect_from_ubus(struct ubus_context *ctx);
-
+int get_static_ip(struct ubus_context *ctx);
+int set_new_static_ip(struct ubus_context *ctx, char *ip);
+int commit_uci_changes(struct ubus_context *ctx, const char *config);
