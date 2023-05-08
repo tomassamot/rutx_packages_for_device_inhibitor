@@ -6,12 +6,14 @@
 #include <signal.h>
 #include <string.h>
 #include <argp.h>
+
 #include "argpfuncs.h"
 #include "tuyafuncs.h"
 #include "becomedaemon.h"
 #include "ubusfuncs.h"
 
 static void board_cb(struct ubus_request *req, int type, struct blob_attr *msg);
+static void myesp_devices_cb(struct ubus_request *req, int type, struct blob_attr *msg);
 static void handle_kill(int signum);
 
 
@@ -24,7 +26,7 @@ int main(int argc, char** argv)
 {
     int ret;
     struct ubus_context *context;
-    uint32_t id;
+    uint32_t system_id, myesp_id;
 
     start_parser(argc, argv, &arguments);
     printf("Starting...\n");
@@ -61,13 +63,15 @@ int main(int argc, char** argv)
             return ret;
         }
         
-        ubus_lookup_id(context, "system", &id);
+        ubus_lookup_id(context, "system", &system_id);
+        ubus_lookup_id(context, "myesp", &myesp_id);
         syslog(LOG_INFO, "Beginning to send information to cloud");
         rc = 0;
         while(rc == 0 && program_is_killed == 0){
-            sleep(4);
+            sleep(5);
             syslog(LOG_INFO, "Sending router RAM information...");
-            ubus_invoke(context, id, "info", NULL, board_cb, NULL, 3000);
+            //ubus_invoke(context, system_id, "info", NULL, board_cb, NULL, 3000);
+            ubus_invoke(context, myesp_id, "devices", NULL, myesp_devices_cb, NULL, 3000);
         }
 
         disconnect_from_ubus(context);
@@ -94,6 +98,59 @@ static void board_cb(struct ubus_request *req, int type, struct blob_attr *msg)
 
     sprintf(message, "{\"free_ram\":%lld,\"total_ram\":%lld}", blobmsg_get_u64(memory[FREE_MEMORY]), blobmsg_get_u64(memory[TOTAL_MEMORY]));
     int ret = tuya_loop(message);
+    if(ret != 0){
+        rc+=1;
+    }
+}
+static void myesp_devices_cb(struct ubus_request *req, int type, struct blob_attr *msg)
+{
+	struct blob_attr *tb[_ALL_DEVICES_MAX];
+    int j = 0;
+
+	blobmsg_parse(myesp_all_devices_policy, _ALL_DEVICES_MAX, tb, blob_data(msg), blob_len(msg));
+
+	if (!tb[ALL_DEVICES]) {
+		syslog(LOG_WARNING, "No memory data received");
+        rc++;
+		return;
+	}
+    
+    struct blob_attr *curr;
+    size_t rem = 0;
+
+
+    char *all_devices = (char *) malloc(2*512*sizeof(char));
+    strcpy(all_devices, "");
+
+    blobmsg_for_each_attr(curr, tb[0], rem){
+        struct blob_attr *device[_DEVICE_MAX];
+        char device_info[512];
+
+        if(j % 2 == 0 && j != 0)
+            all_devices = (char *) realloc(all_devices, 2*j*512*sizeof(char));
+
+        blobmsg_parse(myesp_device_policy, 2, device, blobmsg_data(curr), blobmsg_data_len(curr));
+
+    char *port = blobmsg_get_string(device[PORT_DEVICE]);
+    int vid = blobmsg_get_u32(device[VENDOR_ID]);
+    int pid = blobmsg_get_u32(device[PRODUCT_ID]);
+        if(j == 0)
+            sprintf(device_info, "'{\"port\": \"%s\",\"vendor_id\": %d,\"product_id\": %d}'", blobmsg_get_string(device[PORT_DEVICE]), blobmsg_get_u32(device[VENDOR_ID]), blobmsg_get_u32(device[PRODUCT_ID]));
+        else
+            sprintf(device_info, ",'{\"port\": \"%s\",\"vendor_id\": %d,\"product_id\": %d}'", blobmsg_get_string(device[PORT_DEVICE]), blobmsg_get_u32(device[VENDOR_ID]), blobmsg_get_u32(device[PRODUCT_ID]));
+
+        strcat(all_devices, device_info);
+
+        j++;
+    }
+
+    if(j == 0)
+        j = 1;
+    char *message = (char *)malloc(512*sizeof(char)+2*j*512*sizeof(char));
+    sprintf(message, "{\"esp_controllers\": [%s]}", all_devices);
+
+    int ret = tuya_loop(message);
+    // int ret = tuya_loop("{\"free_ram\":113160192,\"total_ram\":255922176}");
     if(ret != 0){
         rc+=1;
     }

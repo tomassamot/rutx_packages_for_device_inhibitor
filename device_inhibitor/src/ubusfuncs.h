@@ -63,6 +63,41 @@ static const struct blobmsg_policy set_ipaddr_policy[__UCI_SET_MAX] = {
 	[SET_VALUES] = { .name = "values", .type =  BLOBMSG_TYPE_TABLE },
 };
 
+/*
+*	myesp	
+*/
+
+enum{
+    ALL_DEVICES,
+    _ALL_DEVICES_MAX
+};
+enum{
+    PORT_DEVICE,
+    VENDOR_ID,
+    PRODUCT_ID,
+    _DEVICE_MAX,
+};
+
+enum{
+    PORT_ONOFF,
+    PIN,
+    _ONOFF_MAX,
+};
+
+static const struct blobmsg_policy myesp_all_devices_policy[] = {
+    [ALL_DEVICES] = {.name = "devices", .type = BLOBMSG_TYPE_ARRAY}
+};
+static const struct blobmsg_policy myesp_device_policy[] = {
+    [PORT_DEVICE] = {.name = "port", .type=BLOBMSG_TYPE_STRING},
+    [VENDOR_ID] = {.name = "vendor_id", .type=BLOBMSG_TYPE_INT32},
+    [PRODUCT_ID] = {.name = "product_id", .type=BLOBMSG_TYPE_INT32},
+};
+
+static const struct blobmsg_policy myesp_onoff_policy[] = {
+    [PORT_ONOFF] = {.name = "port", .type = BLOBMSG_TYPE_STRING},
+    [PIN] = {.name = "pin", .type = BLOBMSG_TYPE_INT32},
+};
+
 int connect_to_ubus(struct ubus_context **ctx);
 struct blob_attr* get_memory_info(struct ubus_context *ctx);
 void disconnect_from_ubus(struct ubus_context *ctx);

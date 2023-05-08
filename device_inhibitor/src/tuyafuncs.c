@@ -19,11 +19,13 @@
 static void on_connected(tuya_mqtt_context_t* context, void* user_data);
 static void on_disconnect(tuya_mqtt_context_t* context, void* user_data);
 static void on_messages(tuya_mqtt_context_t* context, void* user_data, const tuyalink_message_t* msg);
-static int change_ip_address(char *msg);
+static void process_action(const tuyalink_message_t* msg);
+static int process_change_ip_action(cJSON *json_input_params);
+static int process_esp_turn_on_action(cJSON *json_input_params);
+static int process_esp_turn_off_action(cJSON *json_input_params);
 static int check_if_is_number(char *str);
 static void write_message_to_file(char msg[]);
 static void handle_kill(int signum);
-
 
 
 
@@ -116,17 +118,43 @@ static void on_messages(tuya_mqtt_context_t* context, void* user_data, const tuy
             ACK = 1;
             break;
         case THING_TYPE_ACTION_EXECUTE:
-            change_ip_address(msg->data_string);
+            process_action(msg);
             break;
     }
 }
-static int change_ip_address(char *json_msg)
+static void process_action(const tuyalink_message_t* msg)
 {
-    cJSON *json_obj, *json_input_params, *json_ip;
+    cJSON *json_obj, *json_input_params, *json_action_code, *json_ip;
     int ret = 0;
 
-    json_obj = cJSON_Parse(json_msg);
+    json_obj = cJSON_Parse(msg->data_string);
     json_input_params = cJSON_GetObjectItem(json_obj, "inputParams");
+    json_action_code = cJSON_GetObjectItem(json_obj, "actionCode");
+
+    char *action_code = cJSON_GetStringValue(json_action_code);
+    if(strcmp(action_code, "change_ip") == 0){
+        ret = process_change_ip_action(json_input_params);
+        if(ret == 1)
+            send_response("Received incorrectly formatted IP address");
+    }
+    else if(strcmp(action_code, "esp_turn_on") == 0){
+        ret = process_esp_turn_on_action(json_input_params);
+        if(ret != 0)
+            send_response("Something went wrong when processing request");
+    }
+    else if(strcmp(action_code, "esp_turn_off") == 0){
+        ret = process_esp_turn_off_action(json_input_params);
+        if(ret != 0)
+            send_response("Something went wrong when processing request");
+    }
+    else
+        syslog(LOG_WARNING, "Unknown Action detected");
+}
+static int process_change_ip_action(cJSON *json_input_params)
+{
+    cJSON *json_ip;
+    int ret = 0;
+
     json_ip = cJSON_GetObjectItem(json_input_params, "new_ip");
     char *ip = cJSON_GetStringValue(json_ip);
 
@@ -148,6 +176,36 @@ static int change_ip_address(char *json_msg)
     if(ret == 0){
         commit_uci_changes(ubus_context, "network");
     }
+    return 0;
+}
+static int process_esp_turn_on_action(cJSON *json_input_params)
+{
+    cJSON *json_port, *json_pin;
+    int ret = 0;
+
+    json_port = cJSON_GetObjectItemCaseSensitive(json_input_params, "port");
+    json_pin = cJSON_GetObjectItemCaseSensitive(json_input_params, "pin");
+
+    char command[80];
+	sprintf(command, "echo '{\"action\": \"on\", \"pin\": %d}' > %s", json_pin->valueint, json_port->valuestring);
+
+	system(command);
+
+    return 0;
+}
+static int process_esp_turn_off_action(cJSON *json_input_params)
+{
+    cJSON *json_port, *json_pin;
+    int ret = 0;
+
+    json_port = cJSON_GetObjectItemCaseSensitive(json_input_params, "port");
+    json_pin = cJSON_GetObjectItemCaseSensitive(json_input_params, "pin");
+
+    char command[80];
+	sprintf(command, "echo '{\"action\": \"off\", \"pin\": %d}' > %s", json_pin->valueint, json_port->valuestring);
+
+	system(command);
+
     return 0;
 }
 static int check_if_is_number(char *str)
